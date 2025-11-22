@@ -1,0 +1,55 @@
+services:
+  infisical-web:
+    build:
+      context: .
+      target: dev
+    env_file: .env
+    depends_on:
+      redis-db:
+        condition: service_healthy
+      postgres-db:
+        condition: service_healthy
+    ports:
+      - 3110:8080
+    networks:
+      - enchiridion-net
+
+  redis-db:
+    image: redis
+    env_file: .env
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      start_period: 2s
+      retries: 5
+    volumes:
+      - redis-db-volume:/data
+    networks:
+      - enchiridion-net
+
+  postgres-db:
+    image: postgres:14-alpine
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: "pg_isready --username=${POSTGRES_USER} && psql --username=${POSTGRES_USER} --list"
+      interval: 30s
+      timeout: 60s
+      start_period: 2s
+      retries: 5
+    networks:
+      - enchiridion-net
+
+volumes:
+  postgres-db-volume:
+  redis-db-volume:
+
+networks:
+  enchiridion-net:
+    driver: bridge
